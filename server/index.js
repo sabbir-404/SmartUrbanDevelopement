@@ -10,10 +10,13 @@ app.use(cors());
 app.use(express.json());
 
 const pool = mysql.createPool({
-host: process.env.DB_HOST,
-user: process.env.DB_USER,
-password: process.env.DB_PASS,
-database: process.env.DB_NAME,
+host: process.env.DB_HOST || "localhost",
+/* The line `port: Number(process.env.DB_PORT || 3306)` in the code snippet is setting the port for the
+MySQL database connection. Here's what it does: */
+port: Number(process.env.DB_PORT || 3306),
+user: process.env.DB_USER || "root",
+password: process.env.DB_PASS || "",
+database: process.env.DB_NAME || "smart_urban",
 waitForConnections: true,
 connectionLimit: 10,
 });
@@ -25,21 +28,27 @@ res.json({ ok: true, db: rows[0] });
 
 app.get("/api/services/:serviceKey/items", async (req, res) => {
 const { serviceKey } = req.params;
-// demo table: service_items (service_key, name, status)
+
 const [rows] = await pool.query(
 "SELECT id, name, status FROM service_items WHERE service_key=? ORDER BY id DESC",
 [serviceKey]
 );
+
 res.json(rows);
 });
 
 app.post("/api/services/:serviceKey/items", async (req, res) => {
 const { serviceKey } = req.params;
 const { name, status } = req.body;
+
+const safeName = (name ?? "New Item").toString();
+const safeStatus = status === "Inactive" ? "Inactive" : "Active"; // ✅ validate
+
 const [result] = await pool.query(
 "INSERT INTO service_items (service_key, name, status) VALUES (?, ?, ?)",
-[serviceKey, name ?? "New Item", status ?? "Active"]
+[serviceKey, safeName, safeStatus]
 );
+
 res.status(201).json({ id: result.insertId });
 });
 
